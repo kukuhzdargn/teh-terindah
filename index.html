@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teh Terindah — Kasir</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Public+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#F7F2E7;
+    --cream-dark:#ECE3CE;
+    --paper:#FFFDF8;
+    --ink:#2E2A1F;
+    --ink-soft:#5B5646;
+    --matcha:#5F7A52;
+    --matcha-dark:#455C3B;
+    --matcha-pale:#E4EBDD;
+    --clay:#A15A34;
+    --clay-pale:#F1DCC9;
+    --red:#AE4430;
+    --red-pale:#F6DAD2;
+    --line: rgba(46,42,31,0.14);
+    --shadow: 0 2px 10px rgba(46,42,31,0.06), 0 1px 2px rgba(46,42,31,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'Public Sans', system-ui, sans-serif;
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{
+    font-family:'Fraunces', Georgia, serif;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  button{ font-family:inherit; cursor:pointer; }
+  input, select{ font-family:inherit; }
+
+  /* ---------- Header ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:20;
+    background:var(--cream);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar-inner{
+    max-width:1180px; margin:0 auto; padding:14px 20px 0 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:38px; height:38px; border-radius:50%;
+    background:var(--matcha); display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .brand-name{ font-size:20px; line-height:1; }
+  .brand-sub{ font-size:11px; color:var(--ink-soft); letter-spacing:0.08em; text-transform:uppercase; margin-top:2px;}
+  .settings-btn{
+    background:none; border:1px solid var(--line); border-radius:10px;
+    width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+    color:var(--ink-soft); transition:background .15s;
+  }
+  .settings-btn:hover{ background:var(--cream-dark); }
+
+  .tabs{
+    max-width:1180px; margin:0 auto; padding:16px 20px 0 20px;
+    display:flex; gap:4px; overflow-x:auto;
+  }
+  .tab-btn{
+    background:none; border:none; padding:10px 16px; border-radius:10px 10px 0 0;
+    font-size:14px; font-weight:600; color:var(--ink-soft); white-space:nowrap;
+    border-bottom:2px solid transparent;
+  }
+  .tab-btn.active{ color:var(--matcha-dark); border-bottom:2px solid var(--matcha); }
+  .tab-btn:hover:not(.active){ color:var(--ink); }
+
+  .content{ max-width:1180px; margin:0 auto; padding:20px; }
+
+  /* ---------- Cards / generic ---------- */
+  .card{
+    background:var(--paper); border:1px solid var(--line); border-radius:14px;
+    box-shadow:var(--shadow);
+  }
+  .pad{ padding:18px; }
+  .section-title{ font-size:15px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.08em; margin:0 0 12px 0; }
+  .btn{
+    border-radius:10px; border:1px solid var(--line); background:var(--paper);
+    padding:9px 16px; font-size:14px; font-weight:600; color:var(--ink);
+  }
+  .btn:hover{ background:var(--cream-dark); }
+  .btn-primary{ background:var(--matcha); border-color:var(--matcha); color:#fff; }
+  .btn-primary:hover{ background:var(--matcha-dark); }
+  .btn-danger{ background:none; border-color:var(--red-pale); color:var(--red); }
+  .btn-danger:hover{ background:var(--red-pale); }
+  .btn-clay{ background:var(--clay); border-color:var(--clay); color:#fff; }
+  .btn-clay:hover{ background:#8a4a2a; }
+  .btn:disabled{ opacity:0.45; cursor:not-allowed; }
+  input[type=text], input[type=number], textarea, select{
+    width:100%; padding:9px 11px; border-radius:9px; border:1px solid var(--line);
+    background:var(--paper); font-size:14px; color:var(--ink);
+  }
+  input:focus, textarea:focus, select:focus{ outline:2px solid var(--matcha); outline-offset:1px; }
+  label{ font-size:12px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:4px; }
+  .field{ margin-bottom:12px; }
+  .row{ display:flex; gap:10px; }
+  .row > *{ flex:1; }
+  .muted{ color:var(--ink-soft); }
+  .empty{
+    text-align:center; padding:36px 20px; color:var(--ink-soft); font-size:14px;
+  }
+  .pill{
+    display:inline-flex; align-items:center; padding:2px 9px; border-radius:100px;
+    font-size:11px; font-weight:700; letter-spacing:0.03em;
+  }
+  .pill-low{ background:var(--red-pale); color:var(--red); }
+  .pill-ok{ background:var(--matcha-pale); color:var(--matcha-dark); }
+
+  /* ---------- Kasir layout ---------- */
+  .kasir-grid{ display:grid; grid-template-columns: 1fr 360px; gap:18px; align-items:start; }
+  .menu-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:12px;
+  }
+  .menu-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:12px;
+    padding:14px; text-align:left; transition:border-color .12s, transform .08s;
+  }
+  .menu-card:hover{ border-color:var(--matcha); }
+  .menu-card:active{ transform:scale(0.98); }
+  .menu-card-name{ font-weight:700; font-size:14px; margin-bottom:6px; }
+  .menu-card-price{ color:var(--clay); font-weight:700; font-size:13px; }
+  .menu-card-cat{ font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;}
+
+  .cart-panel{ position:sticky; top:150px; }
+  .cart-item{
+    display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--line);
+  }
+  .cart-item:last-child{ border-bottom:none; }
+  .cart-item-name{ font-size:13px; font-weight:600; flex:1; }
+  .cart-item-price{ font-size:12px; color:var(--ink-soft); }
+  .qty-ctrl{ display:flex; align-items:center; gap:6px; }
+  .qty-btn{
+    width:24px; height:24px; border-radius:7px; border:1px solid var(--line); background:var(--cream);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; color:var(--ink);
+  }
+  .qty-num{ min-width:16px; text-align:center; font-size:13px; font-weight:600; }
+  .cart-total-row{ display:flex; justify-content:space-between; padding:6px 0; font-size:14px; }
+  .cart-total-row.grand{ font-weight:800; font-size:17px; border-top:1px solid var(--line); margin-top:6px; padding-top:12px; }
+
+  /* ---------- Table ---------- */
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th{ text-align:left; padding:8px 10px; color:var(--ink-soft); font-size:11px; text-transform:uppercase; letter-spacing:0.06em; border-bottom:1px solid var(--line); }
+  td{ padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  .icon-btn{
+    background:none; border:none; width:28px; height:28px; border-radius:7px; color:var(--ink-soft);
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .icon-btn:hover{ background:var(--cream-dark); color:var(--ink); }
+
+  /* ---------- Summary tiles (Modal & Pengeluaran) ---------- */
+  .tiles{ display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:12px; margin-bottom:18px; }
+  .tile{ background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .tile-label{ font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); margin-bottom:6px; }
+  .tile-value{ font-family:'Fraunces',serif; font-weight:700; font-size:21px; }
+  .tile.clay .tile-value{ color:var(--clay); }
+  .tile.matcha .tile-value{ color:var(--matcha-dark); }
+  .tile.red .tile-value{ color:var(--red); }
+
+  /* ---------- Modal / dialog ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(46,42,31,0.45); z-index:50;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .dialog{ background:var(--paper); border-radius:16px; max-width:420px; width:100%; padding:22px; box-shadow:0 20px 50px rgba(0,0,0,0.25); max-height:88vh; overflow:auto; }
+  .dialog h3{ margin:0 0 16px 0; font-size:19px; }
+  .dialog-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
+
+  /* ---------- Receipt preview (screen) ---------- */
+  .receipt-wrap{ display:flex; justify-content:center; padding:10px 0 30px 0; }
+  .receipt{
+    width:280px; background:var(--paper); padding:20px 16px 26px 16px; font-family:'Public Sans',monospace;
+    font-size:12px; color:var(--ink); position:relative; box-shadow:var(--shadow);
+    border-radius:2px;
+  }
+  .receipt::after{
+    content:""; position:absolute; left:0; right:0; bottom:0; height:10px;
+    background: radial-gradient(circle at 6px 0, transparent 5px, var(--cream) 5.5px) repeat-x;
+    background-size:12px 10px; background-position:0 100%;
+  }
+  .receipt-title{ text-align:center; font-family:'Fraunces',serif; font-weight:700; font-size:16px; }
+  .receipt-sub{ text-align:center; font-size:10px; color:var(--ink-soft); margin-bottom:8px;}
+  .receipt hr{ border:none; border-top:1px dashed var(--line); margin:8px 0; }
+  .receipt-row{ display:flex; justify-content:space-between; margin-bottom:2px; }
+  .receipt-item-line{ margin-bottom:4px; }
+
+  .empty-illustration{ font-size:34px; margin-bottom:8px; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width:860px){
+    .kasir-grid{ grid-template-columns:1fr; }
+    .cart-panel{ position:static; }
+  }
+  @media (max-width:520px){
+    .topbar-inner{ padding:12px 14px 0 14px; }
+    .tabs{ padding:12px 14px 0 14px; }
+    .content{ padding:14px; }
+    .brand-name{ font-size:17px; }
+  }
+
+  /* ---------- Print ---------- */
+  #receiptPrintArea{ display:none; }
+  @media print{
+    body *{ visibility:hidden; }
+    #receiptPrintArea, #receiptPrintArea *{ visibility:visible; }
+    #receiptPrintArea{
+      display:block; position:absolute; top:0; left:0; padding:6px 8px;
+      font-family:'Public Sans', monospace; color:#000;
+    }
+    .rp-title{ text-align:center; font-weight:800; font-size:14px; }
+    .rp-sub{ text-align:center; font-size:10px; margin-bottom:6px; }
+    .rp-row{ display:flex; justify-content:space-between; font-size:11px; }
+    .rp-hr{ border-top:1px dashed #000; margin:5px 0; }
+    .rp-item{ font-size:11px; margin-bottom:2px; }
+    .rp-foot{ text-align:center; font-size:10px; margin-top:8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3C8 3 5 6 5 10c0 5 3 9 7 11 4-2 7-6 7-11 0-4-3-7-7-7z" fill="#F7F2E7"/><path d="M12 6v13" stroke="#5F7A52" stroke-width="1.4"/></svg>
+      </div>
+      <div>
+        <div class="brand-name display" id="shopNameDisplay">Teh Terindah</div>
+        <div class="brand-sub">Sistem Kasir</div>
+      </div>
+    </div>
+    <button class="settings-btn" onclick="openSettings()" title="Pengaturan">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9c.24.6.79 1.02 1.43 1.09.19.02.38.02.57.02V12"/></svg>
+    </button>
+  </div>
+  <div class="tabs" id="tabsBar"></div>
+</div>
+
+<div class="content" id="content"></div>
+
+<div id="dialogRoot"></div>
+
+<!-- Hidden print-only receipt -->
+<div id="receiptPrintArea"></div>
+
+<script>
+/* ============ STORAGE ============ */
+const STORAGE_KEY = 'teh-terindah-pos-data';
+let state = null;
+
+function defaultState(){
+  return {
+    settings: {
+      shopName: 'Teh Terindah',
+      address: '',
+      footerNote: 'Terima kasih sudah mampir!',
+      receiptWidth: '80'
+    },
+    menus: [
+      {id:'m1', name:'Es Teh Manis', price:8000, category:'Minuman'},
+      {id:'m2', name:'Es Teh Tawar', price:6000, category:'Minuman'},
+      {id:'m3', name:'Teh Tarik', price:12000, category:'Minuman'},
+      {id:'m4', name:'Matcha Latte', price:18000, category:'Matcha'},
+      {id:'m5', name:'Matcha Latte Susu', price:20000, category:'Matcha'},
+      {id:'m6', name:'Lemon Tea', price:15000, category:'Minuman'},
+      {id:'m7', name:'Thai Tea', price:15000, category:'Minuman'},
+    ],
+    stock: [
+      {id:'s1', name:'Teh Celup', qty:80, unit:'pcs', minQty:20},
+      {id:'s2', name:'Bubuk Matcha', qty:800, unit:'gram', minQty:200},
+      {id:'s3', name:'Gula Pasir', qty:5000, unit:'gram', minQty:1000},
+      {id:'s4', name:'Susu Cair', qty:6, unit:'liter', minQty:2},
+      {id:'s5', name:'Es Batu', qty:15, unit:'kg', minQty:3},
+    ],
+    transactions: [],
+    expenses: [],
+    dailyCapital: {}
+  };
+}
+
+async function loadState(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, false);
+    if(res && res.value){
+      state = JSON.parse(res.value);
+      // backfill in case of older shape
+      const d = defaultState();
+      state.settings = Object.assign({}, d.settings, state.settings||{});
+      if(!state.menus) state.menus = d.menus;
+      if(!state.stock) state.stock = d.stock;
+      if(!state.transactions) state.transactions = [];
+      if(!state.expenses) state.expenses = [];
+      if(!state.dailyCapital) state.dailyCapital = {};
+    } else {
+      state = defaultState();
+      await saveState();
+    }
+  }catch(e){
+    console.error('load error', e);
+    state = defaultState();
+    await saveState();
+  }
+}
+
+let saveTimer = null;
+async function saveState(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
+  }catch(e){
+    console.error('save error', e);
+    showToast('Gagal menyimpan data. Coba lagi.');
+  }
+}
+
+/* ============ HELPERS ============ */
+function formatRupiah(n){
+  n = Math.round(Number(n)||0);
+  return 'Rp' + n.toLocaleString('id-ID');
+}
+function genId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function formatDateHuman(dstr){
+  const d = new Date(dstr);
+  return d.toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+}
+function formatTime(ts){
+  const d = new Date(ts);
+  return d.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function showToast(msg){
+  let t = document.getElementById('toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2E2A1F;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;z-index:100;box-shadow:0 6px 20px rgba(0,0,0,0.25);';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>{ t.style.opacity='0'; }, 2200);
+}
+
+/* ============ APP STATE (transient) ============ */
+let currentTab = 'kasir';
+let cart = []; // {menuId, name, price, qty}
+let cashReceived = '';
+
+const TABS = [
+  {id:'kasir', label:'Kasir'},
+  {id:'menu', label:'Menu'},
+  {id:'stok', label:'Stok'},
+  {id:'modal', label:'Modal & Pengeluaran'},
+  {id:'riwayat', label:'Riwayat'},
+];
+
+function renderTabs(){
+  const bar = document.getElementById('tabsBar');
+  bar.innerHTML = TABS.map(t => `<button class="tab-btn ${t.id===currentTab?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
+}
+function switchTab(id){
+  currentTab = id;
+  renderTabs();
+  renderContent();
+}
+
+function renderContent(){
+  const c = document.getElementById('content');
+  if(currentTab==='kasir') c.innerHTML = renderKasir();
+  else if(currentTab==='menu') c.innerHTML = renderMenuTab();
+  else if(currentTab==='stok') c.innerHTML = renderStokTab();
+  else if(currentTab==='modal') c.innerHTML = renderModalTab();
+  else if(currentTab==='riwayat') c.innerHTML = renderRiwayatTab();
+}
+
+/* ============ KASIR ============ */
+function renderKasir(){
+  const menus = state.menus;
+  const cats = [...new Set(menus.map(m=>m.category||'Lainnya'))];
+  let menuHtml = '';
+  if(menus.length===0){
+    menuHtml = `<div class="empty"><div class="empty-illustration">🍵</div>Belum ada menu.<br>Tambahkan menu dulu di tab <b>Menu</b>.</div>`;
+  } else {
+    menuHtml = cats.map(cat => `
+      <div style="margin-bottom:16px;">
+        <div class="section-title">${escapeHtml(cat)}</div>
+        <div class="menu-grid">
+          ${menus.filter(m=>(m.category||'Lainnya')===cat).map(m => `
+            <button class="menu-card" onclick="addToCart('${m.id}')">
+              <div class="menu-card-cat">&nbsp;</div>
+              <div class="menu-card-name">${escapeHtml(m.name)}</div>
+              <div class="menu-card-price">${formatRupiah(m.price)}</div>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  const total = cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const paid = Number(cashReceived)||0;
+  const change = paid - total;
+
+  const cartHtml = cart.length===0
+    ? `<div class="empty" style="padding:24px 10px;"><div class="empty-illustration">🧾</div>Keranjang kosong.<br>Pilih menu di sebelah kiri.</div>`
+    : cart.map(item => `
+      <div class="cart-item">
+        <div style="flex:1;">
+          <div class="cart-item-name">${escapeHtml(item.name)}</div>
+          <div class="cart-item-price">${formatRupiah(item.price)} x ${item.qty} = ${formatRupiah(item.price*item.qty)}</div>
+        </div>
+        <div class="qty-ctrl">
+          <button class="qty-btn" onclick="changeQty('${item.menuId}',-1)">−</button>
+          <div class="qty-num">${item.qty}</div>
+          <button class="qty-btn" onclick="changeQty('${item.menuId}',1)">+</button>
+        </div>
+      </div>
+    `).join('');
+
+  return `
+    <div class="kasir-grid">
+      <div>${menuHtml}</div>
+      <div class="cart-panel">
+        <div class="card pad">
+          <div class="section-title">Pesanan</div>
+          ${cartHtml}
+          ${cart.length>0 ? `
+            <div style="margin-top:10px;">
+              <div class="cart-total-row grand"><span>Total</span><span>${formatRupiah(total)}</span></div>
+              <div class="field" style="margin-top:12px;">
+                <label>Uang diterima</label>
+                <input type="number" min="0" placeholder="0" value="${cashReceived}" oninput="cashReceived=this.value; updateCartPanelOnly()">
+              </div>
+              <div class="cart-total-row" style="${change<0?'color:var(--red);font-weight:700;':''}">
+                <span>Kembalian</span><span>${paid>0 ? formatRupiah(change) : '—'}</span>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:12px;">
+                <button class="btn" style="flex:1;" onclick="clearCart()">Batal</button>
+                <button class="btn btn-primary" style="flex:2;" ${(paid<total)?'disabled':''} onclick="checkout()">Bayar & Cetak Struk</button>
+              </div>
+              ${paid>0 && paid<total ? `<div style="font-size:12px;color:var(--red);margin-top:6px;">Uang diterima kurang dari total.</div>` : ''}
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function updateCartPanelOnly(){
+  // re-render only cart section to keep input focus reasonably; simplest: full re-render but preserve caret is minor UX detail, acceptable.
+  const c = document.getElementById('content');
+  const scrollY = window.scrollY;
+  c.innerHTML = renderKasir();
+  window.scrollTo(0, scrollY);
+}
+
+function addToCart(menuId){
+  const m = state.menus.find(x=>x.id===menuId);
+  if(!m) return;
+  const existing = cart.find(i=>i.menuId===menuId);
+  if(existing) existing.qty += 1;
+  else cart.push({menuId:m.id, name:m.name, price:m.price, qty:1});
+  renderContent();
+}
+function changeQty(menuId, delta){
+  const item = cart.find(i=>i.menuId===menuId);
+  if(!item) return;
+  item.qty += delta;
+  if(item.qty<=0) cart = cart.filter(i=>i.menuId!==menuId);
+  renderContent();
+}
+function clearCart(){
+  cart = [];
+  cashReceived = '';
+  renderContent();
+}
+
+async function checkout(){
+  const total = cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const paid = Number(cashReceived)||0;
+  if(cart.length===0) return;
+  if(paid < total){ showToast('Uang diterima kurang dari total.'); return; }
+  const trx = {
+    id: genId(),
+    ts: Date.now(),
+    date: todayStr(),
+    items: cart.map(i=>({menuId:i.menuId, name:i.name, price:i.price, qty:i.qty})),
+    total, paid, change: paid-total
+  };
+  state.transactions.push(trx);
+  await saveState();
+  printReceipt(trx);
+  cart = [];
+  cashReceived = '';
+  renderContent();
+  showToast('Transaksi tersimpan.');
+}
+
+function printReceipt(trx){
+  const s = state.settings;
+  const area = document.getElementById('receiptPrintArea');
+  const widthMm = s.receiptWidth==='58' ? 58 : 80;
+  let style = document.getElementById('dynamicPrintStyle');
+  if(!style){
+    style = document.createElement('style');
+    style.id = 'dynamicPrintStyle';
+    document.head.appendChild(style);
+  }
+  style.textContent = `@page{ size:${widthMm}mm auto; margin:0; } #receiptPrintArea{ width:${widthMm}mm; }`;
+
+  const itemsHtml = trx.items.map(i => `
+    <div class="rp-item">${escapeHtml(i.name)}<br>${i.qty} x ${formatRupiah(i.price)} <span style="float:right;">${formatRupiah(i.qty*i.price)}</span></div>
+  `).join('');
+
+  area.innerHTML = `
+    <div class="rp-title">${escapeHtml(s.shopName)}</div>
+    ${s.address ? `<div class="rp-sub">${escapeHtml(s.address)}</div>` : ''}
+    <div class="rp-sub">${formatDateHuman(trx.date)} ${formatTime(trx.ts)}</div>
+    <div class="rp-hr"></div>
+    ${itemsHtml}
+    <div class="rp-hr"></div>
+    <div class="rp-row" style="font-weight:800;"><span>TOTAL</span><span>${formatRupiah(trx.total)}</span></div>
+    <div class="rp-row"><span>Tunai</span><span>${formatRupiah(trx.paid)}</span></div>
+    <div class="rp-row"><span>Kembali</span><span>${formatRupiah(trx.change)}</span></div>
+    <div class="rp-foot">${escapeHtml(s.footerNote||'')}</div>
+  `;
+  setTimeout(()=>{ window.print(); }, 60);
+}
+
+/* ============ MENU TAB ============ */
+function renderMenuTab(){
+  const menus = state.menus;
+  return `
+    <div class="card pad">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div class="section-title" style="margin:0;">Daftar Menu</div>
+        <button class="btn btn-primary" onclick="openMenuDialog()">+ Tambah Menu</button>
+      </div>
+      ${menus.length===0 ? `<div class="empty"><div class="empty-illustration">🍵</div>Belum ada menu. Tambahkan menu pertama kamu.</div>` : `
+      <table>
+        <thead><tr><th>Nama</th><th>Kategori</th><th>Harga</th><th></th></tr></thead>
+        <tbody>
+          ${menus.map(m => `
+            <tr>
+              <td style="font-weight:600;">${escapeHtml(m.name)}</td>
+              <td class="muted">${escapeHtml(m.category||'-')}</td>
+              <td>${formatRupiah(m.price)}</td>
+              <td style="text-align:right; white-space:nowrap;">
+                <button class="icon-btn" onclick="openMenuDialog('${m.id}')" title="Edit">✎</button>
+                <button class="icon-btn" onclick="deleteMenu('${m.id}')" title="Hapus">🗑</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+function openMenuDialog(id){
+  const editing = id ? state.menus.find(m=>m.id===id) : null;
+  const root = document.getElementById('dialogRoot');
+  root.innerHTML = `
+    <div class="overlay" onclick="if(event.target===this) closeDialog()">
+      <div class="dialog">
+        <h3>${editing ? 'Edit Menu' : 'Tambah Menu'}</h3>
+        <div class="field"><label>Nama menu</label><input type="text" id="f_name" value="${editing?escapeHtml(editing.name):''}" placeholder="mis. Es Teh Manis"></div>
+        <div class="field"><label>Kategori</label><input type="text" id="f_cat" value="${editing?escapeHtml(editing.category||''):''}" placeholder="mis. Minuman"></div>
+        <div class="field"><label>Harga (Rp)</label><input type="number" id="f_price" min="0" value="${editing?editing.price:''}" placeholder="0"></div>
+        <div class="dialog-actions">
+          <button class="btn" onclick="closeDialog()">Batal</button>
+          <button class="btn btn-primary" onclick="saveMenu(${editing?`'${editing.id}'`:'null'})">Simpan</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+async function saveMenu(id){
+  const name = document.getElementById('f_name').value.trim();
+  const cat = document.getElementById('f_cat').value.trim();
+  const price = Number(document.getElementById('f_price').value)||0;
+  if(!name){ showToast('Nama menu wajib diisi.'); return; }
+  if(id){
+    const m = state.menus.find(x=>x.id===id);
+    m.name=name; m.category=cat; m.price=price;
+  } else {
+    state.menus.push({id:genId(), name, category:cat, price});
+  }
+  await saveState();
+  closeDialog();
+  renderContent();
+  showToast('Menu disimpan.');
+}
+async function deleteMenu(id){
+  if(!confirm('Hapus menu ini?')) return;
+  state.menus = state.menus.filter(m=>m.id!==id);
+  await saveState();
+  renderContent();
+}
+function closeDialog(){ document.getElementById('dialogRoot').innerHTML=''; }
+
+/* ============ STOK TAB ============ */
+function renderStokTab(){
+  const stock = state.stock;
+  return `
+    <div class="card pad">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div class="section-title" style="margin:0;">Stok Bahan</div>
+        <button class="btn btn-primary" onclick="openStockDialog()">+ Tambah Bahan</button>
+      </div>
+      ${stock.length===0 ? `<div class="empty"><div class="empty-illustration">📦</div>Belum ada data stok.</div>` : `
+      <table>
+        <thead><tr><th>Bahan</th><th>Jumlah</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${stock.map(s => {
+            const low = s.qty <= (s.minQty||0);
+            return `
+            <tr>
+              <td style="font-weight:600;">${escapeHtml(s.name)}</td>
+              <td>${s.qty} ${escapeHtml(s.unit||'')}</td>
+              <td>${low ? `<span class="pill pill-low">Menipis</span>` : `<span class="pill pill-ok">Aman</span>`}</td>
+              <td style="text-align:right; white-space:nowrap;">
+                <button class="icon-btn" onclick="adjustStock('${s.id}',-1)" title="Kurangi 1">−</button>
+                <button class="icon-btn" onclick="adjustStock('${s.id}',1)" title="Tambah 1">+</button>
+                <button class="icon-btn" onclick="openStockDialog('${s.id}')" title="Edit">✎</button>
+                <button class="icon-btn" onclick="deleteStock('${s.id}')" title="Hapus">🗑</button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  `;
+}
+async function adjustStock(id, delta){
+  const s = state.stock.find(x=>x.id===id);
+  if(!s) return;
+  s.qty = Math.max(0, s.qty + delta);
+  await saveState();
+  renderContent();
+}
+function openStockDialog(id){
+  const editing = id ? state.stock.find(s=>s.id===id) : null;
+  const root = document.getElementById('dialogRoot');
+  root.innerHTML = `
+    <div class="overlay" onclick="if(event.target===this) closeDialog()">
+      <div class="dialog">
+        <h3>${editing ? 'Edit Bahan' : 'Tambah Bahan'}</h3>
+        <div class="field"><label>Nama bahan</label><input type="text" id="f_sname" value="${editing?escapeHtml(editing.name):''}" placeholder="mis. Gula Pasir"></div>
+        <div class="row">
+          <div class="field"><label>Jumlah</label><input type="number" id="f_sqty" min="0" value="${editing?editing.qty:''}" placeholder="0"></div>
+          <div class="field"><label>Satuan</label><input type="text" id="f_sunit" value="${editing?escapeHtml(editing.unit||''):''}" placeholder="gram / kg / pcs"></div>
+        </div>
+        <div class="field"><label>Batas minimum (peringatan menipis)</label><input type="number" id="f_smin" min="0" value="${editing?(editing.minQty||0):0}"></div>
+        <div class="dialog-actions">
+          <button class="btn" onclick="closeDialog()">Batal</button>
+          <button class="btn btn-primary" onclick="saveStock(${editing?`'${editing.id}'`:'null'})">Simpan</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+async function saveStock(id){
+  const name = document.getElementById('f_sname').value.trim();
+  const qty = Number(document.getElementById('f_sqty').value)||0;
+  const unit = document.getElementById('f_sunit').value.trim();
+  const minQty = Number(document.getElementById('f_smin').value)||0;
+  if(!name){ showToast('Nama bahan wajib diisi.'); return; }
+  if(id){
+    const s = state.stock.find(x=>x.id===id);
+    s.name=name; s.qty=qty; s.unit=unit; s.minQty=minQty;
+  } else {
+    state.stock.push({id:genId(), name, qty, unit, minQty});
+  }
+  await saveState();
+  closeDialog();
+  renderContent();
+  showToast('Stok disimpan.');
+}
+async function deleteStock(id){
+  if(!confirm('Hapus bahan ini?')) return;
+  state.stock = state.stock.filter(s=>s.id!==id);
+  await saveState();
+  renderContent();
+}
+
+/* ============ MODAL & PENGELUARAN TAB ============ */
+function renderModalTab(){
+  const date = todayStr();
+  const modalAwal = state.dailyCapital[date] || 0;
+  const expensesToday = state.expenses.filter(e=>e.date===date);
+  const totalPengeluaran = expensesToday.reduce((s,e)=>s+e.amount,0);
+  const sisaModal = modalAwal - totalPengeluaran;
+  const trxToday = state.transactions.filter(t=>t.date===date);
+  const totalPenjualan = trxToday.reduce((s,t)=>s+t.total,0);
+  const estimasiKas = sisaModal + totalPenjualan;
+
+  return `
+    <div style="margin-bottom:18px; display:flex; justify-content:space-between; align-items:center;">
+      <div class="section-title" style="margin:0;">${formatDateHuman(date)}</div>
+      <button class="btn" onclick="openCapitalDialog()">${modalAwal>0?'Ubah':'Set'} Modal Hari Ini</button>
+    </div>
+    <div class="tiles">
+      <div class="tile matcha"><div class="tile-label">Modal Awal</div><div class="tile-value">${formatRupiah(modalAwal)}</div></div>
+      <div class="tile red"><div class="tile-label">Total Pengeluaran</div><div class="tile-value">${formatRupiah(totalPengeluaran)}</div></div>
+      <div class="tile"><div class="tile-label">Sisa Modal</div><div class="tile-value">${formatRupiah(sisaModal)}</div></div>
+      <div class="tile clay"><div class="tile-label">Penjualan Hari Ini</div><div class="tile-value">${formatRupiah(totalPenjualan)}</div></div>
+      <div class="tile matcha"><div class="tile-label">Estimasi Kas</div><div class="tile-value">${formatRupiah(estimasiKas)}</div></div>
+    </div>
+
+    <div class="card pad">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div class="section-title" style="margin:0;">Pengeluaran Hari Ini</div>
+        <button class="btn btn-primary" onclick="openExpenseDialog()">+ Tambah Pengeluaran</button>
+      </div>
+      ${expensesToday.length===0 ? `<div class="empty"><div class="empty-illustration">🧾</div>Belum ada pengeluaran hari ini.</div>` : `
+      <table>
+        <thead><tr><th>Waktu</th><th>Keterangan</th><th>Jumlah</th><th></th></tr></thead>
+        <tbody>
+          ${expensesToday.slice().reverse().map(e => `
+            <tr>
+              <td class="muted">${formatTime(e.ts)}</td>
+              <td>${escapeHtml(e.desc)}</td>
+              <td>${formatRupiah(e.amount)}</td>
+              <td style="text-align:right;"><button class="icon-btn" onclick="deleteExpense('${e.id}')" title="Hapus">🗑</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  `;
+}
+function openCapitalDialog(){
+  const date = todayStr();
+  const current = state.dailyCapital[date] || '';
+  const root = document.getElementById('dialogRoot');
+  root.innerHTML = `
+    <div class="overlay" onclick="if(event.target===this) closeDialog()">
+      <div class="dialog">
+        <h3>Modal Hari Ini</h3>
+        <div class="field"><label>Jumlah modal (Rp)</label><input type="number" id="f_capital" min="0" value="${current}" placeholder="0"></div>
+        <div class="dialog-actions">
+          <button class="btn" onclick="closeDialog()">Batal</button>
+          <button class="btn btn-primary" onclick="saveCapital()">Simpan</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+async function saveCapital(){
+  const val = Number(document.getElementById('f_capital').value)||0;
+  state.dailyCapital[todayStr()] = val;
+  await saveState();
+  closeDialog();
+  renderContent();
+  showToast('Modal harian disimpan.');
+}
+function openExpenseDialog(){
+  const root = document.getElementById('dialogRoot');
+  root.innerHTML = `
+    <div class="overlay" onclick="if(event.target===this) closeDialog()">
+      <div class="dialog">
+        <h3>Tambah Pengeluaran</h3>
+        <div class="field"><label>Keterangan</label><input type="text" id="f_edesc" placeholder="mis. Beli es batu"></div>
+        <div class="field"><label>Jumlah (Rp)</label><input type="number" id="f_eamt" min="0" placeholder="0"></div>
+        <div class="dialog-actions">
+          <button class="btn" onclick="closeDialog()">Batal</button>
+          <button class="btn btn-primary" onclick="saveExpense()">Simpan</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+async function saveExpense(){
+  const desc = document.getElementById('f_edesc').value.trim();
+  const amount = Number(document.getElementById('f_eamt').value)||0;
+  if(!desc){ showToast('Keterangan wajib diisi.'); return; }
+  if(amount<=0){ showToast('Jumlah harus lebih dari 0.'); return; }
+  state.expenses.push({id:genId(), ts:Date.now(), date:todayStr(), desc, amount});
+  await saveState();
+  closeDialog();
+  renderContent();
+  showToast('Pengeluaran dicatat.');
+}
+async function deleteExpense(id){
+  if(!confirm('Hapus catatan pengeluaran ini?')) return;
+  state.expenses = state.expenses.filter(e=>e.id!==id);
+  await saveState();
+  renderContent();
+}
+
+/* ============ RIWAYAT TAB ============ */
+let riwayatFilterDate = todayStr();
+function renderRiwayatTab(){
+  const trx = state.transactions.filter(t=>t.date===riwayatFilterDate).slice().reverse();
+  const totalHari = trx.reduce((s,t)=>s+t.total,0);
+  return `
+    <div class="card pad">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+        <div class="section-title" style="margin:0;">Riwayat Transaksi</div>
+        <input type="date" value="${riwayatFilterDate}" style="max-width:170px;" onchange="riwayatFilterDate=this.value; renderContent();">
+      </div>
+      <div class="muted" style="margin-bottom:12px; font-size:13px;">${trx.length} transaksi · Total ${formatRupiah(totalHari)}</div>
+      ${trx.length===0 ? `<div class="empty"><div class="empty-illustration">🧾</div>Belum ada transaksi di tanggal ini.</div>` : `
+      <table>
+        <thead><tr><th>Waktu</th><th>Item</th><th>Total</th><th></th></tr></thead>
+        <tbody>
+          ${trx.map(t => `
+            <tr>
+              <td class="muted">${formatTime(t.ts)}</td>
+              <td>${t.items.map(i=>`${escapeHtml(i.name)} x${i.qty}`).join(', ')}</td>
+              <td style="font-weight:600;">${formatRupiah(t.total)}</td>
+              <td style="text-align:right;"><button class="icon-btn" onclick='reprintById("${t.id}")' title="Cetak ulang">🖨</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  `;
+}
+function reprintById(id){
+  const t = state.transactions.find(x=>x.id===id);
+  if(t) printReceipt(t);
+}
+
+/* ============ SETTINGS ============ */
+function openSettings(){
+  const s = state.settings;
+  const root = document.getElementById('dialogRoot');
+  root.innerHTML = `
+    <div class="overlay" onclick="if(event.target===this) closeDialog()">
+      <div class="dialog">
+        <h3>Pengaturan Toko</h3>
+        <div class="field"><label>Nama toko</label><input type="text" id="f_shopname" value="${escapeHtml(s.shopName)}"></div>
+        <div class="field"><label>Alamat / catatan (tampil di struk)</label><input type="text" id="f_address" value="${escapeHtml(s.address)}" placeholder="opsional"></div>
+        <div class="field"><label>Pesan penutup struk</label><input type="text" id="f_footer" value="${escapeHtml(s.footerNote)}"></div>
+        <div class="field">
+          <label>Lebar kertas printer thermal</label>
+          <select id="f_width">
+            <option value="80" ${s.receiptWidth==='80'?'selected':''}>80mm</option>
+            <option value="58" ${s.receiptWidth==='58'?'selected':''}>58mm</option>
+          </select>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn" onclick="closeDialog()">Batal</button>
+          <button class="btn btn-primary" onclick="saveSettings()">Simpan</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+async function saveSettings(){
+  state.settings.shopName = document.getElementById('f_shopname').value.trim() || 'Teh Terindah';
+  state.settings.address = document.getElementById('f_address').value.trim();
+  state.settings.footerNote = document.getElementById('f_footer').value.trim();
+  state.settings.receiptWidth = document.getElementById('f_width').value;
+  await saveState();
+  document.getElementById('shopNameDisplay').textContent = state.settings.shopName;
+  closeDialog();
+  showToast('Pengaturan disimpan.');
+}
+
+/* ============ INIT ============ */
+async function init(){
+  await loadState();
+  document.getElementById('shopNameDisplay').textContent = state.settings.shopName;
+  renderTabs();
+  renderContent();
+}
+init();
+</script>
+</body>
+</html>

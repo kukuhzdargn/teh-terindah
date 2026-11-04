@@ -268,6 +268,14 @@
     div[style*="font-size:12px"]{ font-size:14px !important; }
     div[style*="font-size:13px"]{ font-size:15px !important; }
   }
+
+  /* ===== FOTO MENU ===== */
+  .menu-card-img{ display:block; width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:10px; margin-bottom:10px; background:var(--matcha-pale); }
+  .menu-card-ph{ display:flex; align-items:center; justify-content:center; font-size:38px; }
+  .menu-card{ display:block; }
+  .thumb{ width:52px; height:52px; border-radius:10px; object-fit:cover; background:var(--matcha-pale); display:flex; align-items:center; justify-content:center; font-size:24px; }
+  .img-preview{ width:130px; height:130px; border-radius:12px; overflow:hidden; background:var(--matcha-pale); border:1px dashed var(--line); display:flex; align-items:center; justify-content:center; font-size:40px; margin-bottom:10px; }
+  .img-preview img{ width:100%; height:100%; object-fit:cover; display:block; }
 </style>
 </head>
 <body>
@@ -363,7 +371,7 @@ async function saveState(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }catch(e){
     console.error('save error', e);
-    showToast('Gagal menyimpan data. Coba lagi.');
+    showToast('Gagal menyimpan. Penyimpanan mungkin penuh, coba kurangi jumlah foto.');
   }
 }
 
@@ -449,7 +457,7 @@ function renderKasir(){
         <div class="menu-grid">
           ${menus.filter(m=>(m.category||'Lainnya')===cat).map(m => `
             <button class="menu-card" onclick="addToCart('${m.id}')">
-              <div class="menu-card-cat">&nbsp;</div>
+              ${m.image ? `<img class="menu-card-img" src="${m.image}" alt="">` : `<div class="menu-card-img menu-card-ph">🍵</div>`}
               <div class="menu-card-name">${escapeHtml(m.name)}</div>
               <div class="menu-card-price">${formatRupiah(m.price)}</div>
             </button>
@@ -607,10 +615,11 @@ function renderMenuTab(){
       </div>
       ${menus.length===0 ? `<div class="empty"><div class="empty-illustration">🍵</div>Belum ada menu. Tambahkan menu pertama kamu.</div>` : `
       <table>
-        <thead><tr><th>Nama</th><th>Kategori</th><th>Harga</th><th></th></tr></thead>
+        <thead><tr><th>Foto</th><th>Nama</th><th>Kategori</th><th>Harga</th><th></th></tr></thead>
         <tbody>
           ${menus.map(m => `
             <tr>
+              <td>${m.image ? `<img class="thumb" src="${m.image}" alt="">` : `<div class="thumb">🍵</div>`}</td>
               <td style="font-weight:600;">${escapeHtml(m.name)}</td>
               <td class="muted">${escapeHtml(m.category||'-')}</td>
               <td>${formatRupiah(m.price)}</td>
@@ -626,8 +635,10 @@ function renderMenuTab(){
   `;
 }
 
+let menuImgDraft = '';
 function openMenuDialog(id){
   const editing = id ? state.menus.find(m=>m.id===id) : null;
+  menuImgDraft = editing ? (editing.image||'') : '';
   const root = document.getElementById('dialogRoot');
   root.innerHTML = `
     <div class="overlay" onclick="if(event.target===this) closeDialog()">
@@ -636,6 +647,12 @@ function openMenuDialog(id){
         <div class="field"><label>Nama menu</label><input type="text" id="f_name" value="${editing?escapeHtml(editing.name):''}" placeholder="mis. Es Teh Manis"></div>
         <div class="field"><label>Kategori</label><input type="text" id="f_cat" value="${editing?escapeHtml(editing.category||''):''}" placeholder="mis. Minuman"></div>
         <div class="field"><label>Harga (Rp)</label><input type="number" id="f_price" min="0" value="${editing?editing.price:''}" placeholder="0"></div>
+        <div class="field">
+          <label>Foto menu (opsional)</label>
+          <div class="img-preview" id="imgPreview"></div>
+          <input type="file" id="f_img" accept="image/*" onchange="handleMenuImage(this)">
+          <button class="btn" style="margin-top:8px;" onclick="removeMenuImage()">Hapus foto</button>
+        </div>
         <div class="dialog-actions">
           <button class="btn" onclick="closeDialog()">Batal</button>
           <button class="btn btn-primary" onclick="saveMenu(${editing?`'${editing.id}'`:'null'})">Simpan</button>
@@ -643,6 +660,38 @@ function openMenuDialog(id){
       </div>
     </div>
   `;
+  renderImgPreview();
+}
+function renderImgPreview(){
+  const el = document.getElementById('imgPreview');
+  if(!el) return;
+  el.innerHTML = menuImgDraft ? `<img src="${menuImgDraft}" alt="">` : '🍵';
+}
+function removeMenuImage(){
+  menuImgDraft = '';
+  const f = document.getElementById('f_img'); if(f) f.value = '';
+  renderImgPreview();
+}
+function handleMenuImage(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      // potong jadi persegi di tengah, kecilkan ke 320px supaya hemat penyimpanan
+      const size = Math.min(img.width, img.height);
+      const sx = (img.width - size)/2, sy = (img.height - size)/2;
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 320;
+      canvas.getContext('2d').drawImage(img, sx, sy, size, size, 0, 0, 320, 320);
+      menuImgDraft = canvas.toDataURL('image/jpeg', 0.78);
+      renderImgPreview();
+    };
+    img.onerror = () => showToast('Gambar tidak bisa dibaca. Coba file lain.');
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
 }
 async function saveMenu(id){
   const name = document.getElementById('f_name').value.trim();
@@ -651,9 +700,9 @@ async function saveMenu(id){
   if(!name){ showToast('Nama menu wajib diisi.'); return; }
   if(id){
     const m = state.menus.find(x=>x.id===id);
-    m.name=name; m.category=cat; m.price=price;
+    m.name=name; m.category=cat; m.price=price; m.image=menuImgDraft;
   } else {
-    state.menus.push({id:genId(), name, category:cat, price});
+    state.menus.push({id:genId(), name, category:cat, price, image:menuImgDraft});
   }
   await saveState();
   closeDialog();

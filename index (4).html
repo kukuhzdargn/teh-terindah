@@ -1072,6 +1072,18 @@ function openSettings(){
             <option value="58" ${s.receiptWidth==='58'?'selected':''}>58mm</option>
           </select>
         </div>
+        <div class="field" style="border-top:1px solid var(--line); padding-top:14px; margin-top:6px;">
+          <label>Cadangan data (pindah ke HP / laptop lain)</label>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+            <button class="btn" onclick="exportData()">⬇ Simpan cadangan</button>
+            <button class="btn" onclick="document.getElementById('f_import').click()">⬆ Pulihkan cadangan</button>
+          </div>
+          <select id="f_importMode">
+            <option value="master">Pulihkan menu, foto, stok &amp; pengaturan saja (transaksi di perangkat ini tetap aman)</option>
+            <option value="all">Pulihkan semuanya (termasuk transaksi, menimpa data di perangkat ini)</option>
+          </select>
+          <input type="file" id="f_import" accept=".json,application/json" style="display:none" onchange="importData(this)">
+        </div>
         <div class="dialog-actions">
           <button class="btn" onclick="closeDialog()">Batal</button>
           <button class="btn btn-primary" onclick="saveSettings()">Simpan</button>
@@ -1079,6 +1091,60 @@ function openSettings(){
       </div>
     </div>
   `;
+}
+function exportData(){
+  try{
+    const blob = new Blob([JSON.stringify(state)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'teh-terindah-cadangan-' + todayStr() + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+    showToast('Cadangan diunduh.');
+  }catch(e){
+    showToast('Gagal membuat cadangan.');
+  }
+}
+function importData(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const modeEl = document.getElementById('f_importMode');
+  const mode = modeEl ? modeEl.value : 'master';
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(!data || !Array.isArray(data.menus)) throw new Error('format salah');
+      const msg = mode==='all'
+        ? 'Timpa SEMUA data di perangkat ini (termasuk transaksi) dengan isi cadangan?'
+        : 'Timpa menu, foto, stok, dan pengaturan di perangkat ini dengan isi cadangan? Transaksi tidak diubah.';
+      if(!confirm(msg)){ input.value=''; return; }
+      const d = defaultState();
+      if(mode==='all'){
+        state = data;
+        state.settings = Object.assign({}, d.settings, data.settings||{});
+        if(!state.stock) state.stock = [];
+        if(!state.transactions) state.transactions = [];
+        if(!state.expenses) state.expenses = [];
+        if(!state.dailyCapital) state.dailyCapital = {};
+      } else {
+        state.menus = data.menus;
+        if(Array.isArray(data.stock)) state.stock = data.stock;
+        if(data.settings) state.settings = Object.assign({}, d.settings, data.settings);
+      }
+      await saveState();
+      document.getElementById('shopNameDisplay').textContent = state.settings.shopName;
+      closeDialog();
+      renderContent();
+      showToast('Cadangan berhasil dipulihkan.');
+    }catch(e){
+      showToast('File cadangan tidak valid.');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
 }
 async function saveSettings(){
   state.settings.shopName = document.getElementById('f_shopname').value.trim() || 'Teh Terindah';

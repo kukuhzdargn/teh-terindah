@@ -1,22 +1,23 @@
 {
+  "id": "/teh-terindah/",
   "name": "Teh Terindah Kasir",
   "short_name": "Teh Terindah",
   "description": "Sistem kasir Teh Terindah",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/teh-terindah/index.html",
+  "scope": "/teh-terindah/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#1B3D25",
   "theme_color": "#1B3D25",
   "icons": [
     {
-      "src": "icon-192.png",
+      "src": "/teh-terindah/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.png",
+      "src": "/teh-terindah/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

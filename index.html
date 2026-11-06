@@ -349,6 +349,17 @@
   @media (prefers-reduced-motion:reduce){
     *{ animation:none !important; transition:none !important; }
   }
+
+  /* ===== PANEL PESANAN: bisa di-scroll sendiri ===== */
+  @media screen and (min-width:861px){
+    .cart-panel{
+      top:var(--hdr,200px);
+      max-height:calc(100vh - var(--hdr,200px) - 16px);
+      overflow-y:auto;
+      padding:2px 2px 6px 2px;
+      scrollbar-width:thin;
+    }
+  }
 </style>
 </head>
 <body>
@@ -588,7 +599,7 @@ function renderKasir(){
               </div>
               ${payMethod==='tunai' ? `<div class="field" style="margin-top:12px;">
                 <label>Uang diterima</label>
-                <input type="number" id="cashInput" min="0" placeholder="0" value="${cashReceived}" oninput="cashReceived=this.value; updateCartPanelOnly()">
+                <input type="text" inputmode="numeric" autocomplete="off" id="cashInput" placeholder="0" value="${cashReceived}" oninput="cashReceived=this.value.replace(/[^0-9]/g,''); updateCartPanelOnly()">
               </div>
               <div class="cart-total-row" style="${change<0?'color:var(--red);font-weight:700;':''}">
                 <span>Kembalian</span><span>${paid>0 ? formatRupiah(change) : '—'}</span>
@@ -1164,7 +1175,14 @@ async function init(){
   renderTabs();
   renderContent();
   playTabAnim();
+  setHdr();
 }
+function setHdr(){
+  const tb = document.querySelector('.topbar');
+  if(tb) document.documentElement.style.setProperty('--hdr', (tb.offsetHeight + 12) + 'px');
+}
+window.addEventListener('resize', setHdr);
+window.addEventListener('load', setHdr);
 init();
 
 if('serviceWorker' in navigator){

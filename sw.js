@@ -1,17 +1,19 @@
-const CACHE='teh-terindah-v1';
-const FILES=['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png'];
+const CACHE='teh-terindah-v2';
+const FILES=['./','./index.html','./antrian.html','./manifest.json','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting()));
 });
 self.addEventListener('activate',e=>{
   e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
 });
-// Ambil dari internet dulu (supaya update langsung masuk), kalau offline pakai simpanan
+// Ambil dari internet dulu (supaya update langsung masuk), kalau offline pakai simpanan.
+// Permintaan ke situs lain (misalnya database antrian) tidak disentuh.
 self.addEventListener('fetch',e=>{
   if(e.request.method!=='GET') return;
+  if(new URL(e.request.url).origin!==location.origin) return;
   e.respondWith(
     fetch(e.request).then(r=>{
-      if(r.ok && new URL(e.request.url).origin===location.origin){
+      if(r.ok){
         const copy=r.clone(); caches.open(CACHE).then(c=>c.put(e.request,copy));
       }
       return r;

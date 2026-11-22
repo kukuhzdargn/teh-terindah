@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Antrian — Teh Terindah</title>
+<style>
+  *{ box-sizing:border-box; }
+  html, body{ margin:0; height:100%; }
+  body{ background:#0F2717; color:#F3F7EF; font-family:Arial, Helvetica, sans-serif; overflow:hidden; }
+  #app{ display:flex; flex-direction:column; height:100%; }
+  .head{ display:flex; justify-content:space-between; align-items:center; padding:2vh 3vw; background:#1B3D25; }
+  .title{ font-size:4vw; font-weight:bold; }
+  .clock{ font-size:3vw; color:#B7CDB5; }
+  .cols{ display:flex; flex:1; min-height:0; }
+  .col{ flex:1; padding:2vh 2vw; overflow:hidden; }
+  .col h2{ margin:0 0 2vh 0; font-size:3.2vw; text-align:center; letter-spacing:0.1em; }
+  .col-proses{ background:#16301E; }
+  .col-siap{ background:#E3F0DE; color:#0F2717; }
+  .nums{ text-align:center; }
+  .num{ display:inline-block; margin:0.8vw; padding:0.6vw 2vw; font-size:7vw; font-weight:bold; border-radius:1.5vw; background:rgba(255,255,255,0.12); }
+  .col-siap .num{ background:#2B5A37; color:#fff; }
+  .num.new{ -webkit-animation:blink 1s ease 6; animation:blink 1s ease 6; }
+  @-webkit-keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+  @keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+  .empty{ opacity:0.5; font-size:2.4vw; text-align:center; margin-top:6vh; }
+  .status{ position:fixed; bottom:1vh; left:0; right:0; text-align:center; font-size:1.6vw; color:#B7CDB5; }
+  .hint{ position:fixed; bottom:1vh; right:2vw; font-size:1.4vw; color:#7FA384; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="head">
+    <div class="title">Teh Terindah</div>
+    <div class="clock" id="clock"></div>
+  </div>
+  <div class="cols">
+    <div class="col col-proses">
+      <h2>SEDANG DIBUAT</h2>
+      <div class="nums" id="proses"></div>
+    </div>
+    <div class="col col-siap">
+      <h2>SIAP DIAMBIL</h2>
+      <div class="nums" id="siap"></div>
+    </div>
+  </div>
+</div>
+<div class="status" id="status"></div>
+<div class="hint" id="hint">Tekan layar sekali untuk mengaktifkan bunyi</div>
+
+<script>
+(function(){
+  var db = '';
+  var m = location.search.match(/[?&]db=([^&]+)/);
+  if(m){
+    try{ db = decodeURIComponent(m[1]); localStorage.setItem('tt-db', db); }catch(e){}
+  } else {
+    try{ db = localStorage.getItem('tt-db') || ''; }catch(e){}
+  }
+  db = db.replace(/\/+$/, '');
+
+  var elP = document.getElementById('proses');
+  var elS = document.getElementById('siap');
+  var elSt = document.getElementById('status');
+  var elClock = document.getElementById('clock');
+  var elHint = document.getElementById('hint');
+  var prevSiap = {};
+  var firstLoad = true;
+  var fails = 0;
+  var audioCtx = null;
+
+  function pad(n){ return n < 10 ? '0' + n : '' + n; }
+  function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function tickClock(){
+    var d = new Date();
+    elClock.innerHTML = pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  tickClock();
+  setInterval(tickClock, 15000);
+
+  function unlock(){
+    if(audioCtx) return;
+    try{
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if(AC){ audioCtx = new AC(); elHint.style.display = 'none'; }
+    }catch(e){}
+  }
+  document.addEventListener('click', unlock);
+  document.addEventListener('keydown', unlock);
+  document.addEventListener('touchstart', unlock);
+
+  function beep(){
+    if(!audioCtx) return;
+    try{
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      g.gain.value = 0.25;
+      o.frequency.value = 880;
+      o.start(0);
+      setTimeout(function(){ o.frequency.value = 1175; }, 180);
+      setTimeout(function(){ o.stop(0); }, 450);
+    }catch(e){}
+  }
+
+  function byTs(a, b){ return (a.o.ts || 0) - (b.o.ts || 0); }
+
+  function render(orders){
+    var proses = [], siap = [], k;
+    for(k in orders){
+      if(orders.hasOwnProperty(k)){
+        var o = orders[k];
+        if(!o || !o.no) continue;
+        if(o.status === 'siap') siap.push({id:k, o:o});
+        else if(o.status === 'proses') proses.push({id:k, o:o});
+      }
+    }
+    proses.sort(byTs);
+    siap.sort(byTs);
+
+    var hasNew = false, newSiap = {}, i, html;
+    html = '';
+    for(i = 0; i < proses.length; i++){
+      html += '<span class="num">' + esc(proses[i].o.no) + '</span>';
+    }
+    elP.innerHTML = html || '<div class="empty">—</div>';
+
+    html = '';
+    for(i = 0; i < siap.length; i++){
+      var isNew = !firstLoad && !prevSiap[siap[i].id];
+      if(isNew) hasNew = true;
+      newSiap[siap[i].id] = true;
+      html += '<span class="num' + (isNew ? ' new' : '') + '">' + esc(siap[i].o.no) + '</span>';
+    }
+    elS.innerHTML = html || '<div class="empty">—</div>';
+    prevSiap = newSiap;
+    firstLoad = false;
+    if(hasNew) beep();
+  }
+
+  function setStatus(t){ elSt.innerHTML = t; }
+
+  function poll(){
+    var called = false;
+    function finish(ok){
+      if(called) return;
+      called = true;
+      if(ok){ fails = 0; setStatus(''); }
+      else { fails++; if(fails >= 3) setStatus('Menghubungkan ulang...'); }
+      setTimeout(poll, 2000);
+    }
+    try{
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', db + '/antrian/aktif.json?t=' + (new Date().getTime()), true);
+      xhr.timeout = 6000;
+      xhr.onload = function(){
+        if(xhr.status === 200){
+          try{
+            var data = JSON.parse(xhr.responseText);
+            render((data && data.orders) || {});
+            finish(true);
+          }catch(e){ finish(false); }
+        } else { finish(false); }
+      };
+      xhr.onerror = function(){ finish(false); };
+      xhr.ontimeout = function(){ finish(false); };
+      xhr.send();
+    }catch(e){ finish(false); }
+  }
+
+  if(!db){
+    elHint.style.display = 'none';
+    setStatus('Alamat database belum diatur. Buka halaman ini dari tombol "Salin alamat TV" di Pengaturan kasir.');
+    elP.innerHTML = '<div class="empty">—</div>';
+    elS.innerHTML = '<div class="empty">—</div>';
+  } else {
+    poll();
+  }
+})();
+</script>
+</body>
+</html>

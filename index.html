@@ -368,6 +368,19 @@
     .cart-pop{ animation:slideInRight .35s ease both; }
   }
   @keyframes slideInRight{ from{ opacity:0; transform:translateX(26px); } to{ opacity:1; transform:none; } }
+
+  /* ===== DISKON ===== */
+  .disc-box{ margin-top:12px; padding:12px; border-radius:10px; background:var(--matcha-pale); }
+  .disc-box label{ margin-bottom:8px; }
+  .promo-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+  .promo-chip{ padding:8px 12px; border-radius:100px; border:2px solid var(--line); background:var(--paper); font-weight:700; font-size:14px; color:var(--ink-soft); }
+  .promo-chip.active{ border-color:#1F4A2B; background:linear-gradient(135deg,#3E7A4C,#1F4A2B); color:#fff; }
+  .disc-row{ display:flex; gap:8px; }
+  .disc-row input{ min-width:0; flex:1; }
+  .disc-type{ display:flex; border-radius:10px; overflow:hidden; border:2px solid var(--line); flex-shrink:0; }
+  .disc-t{ padding:10px 16px; border:none; background:var(--paper); font-weight:800; font-size:16px; color:var(--ink-soft); }
+  .disc-t.active{ background:#1F4A2B; color:#fff; }
+  .promo-item{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 0; border-bottom:1px solid var(--line); font-size:15px; }
 </style>
 </head>
 <body>
@@ -409,7 +422,8 @@ function defaultState(){
       shopName: 'Teh Terindah',
       address: '',
       footerNote: 'Terima kasih sudah mampir!',
-      receiptWidth: '80'
+      receiptWidth: '80',
+      promos: []
     },
     menus: [
       {id:'m1', name:'Es Teh Manis', price:8000, category:'Minuman'},
@@ -511,6 +525,46 @@ let cashReceived = '';
 let payMethod = 'tunai'; // 'tunai' | 'qris'
 let cartAnim = false;
 let riwayatMethod = 'all';
+let discountType = 'rp'; // 'rp' | 'pct'
+let discountInput = '';
+let activePromo = '';
+
+function calcDiscount(subtotal){
+  const v = Number(discountInput)||0;
+  let d = discountType==='pct' ? Math.round(subtotal * Math.min(v,100) / 100) : v;
+  return Math.max(0, Math.min(d, subtotal));
+}
+function discLabel(){
+  const v = Number(discountInput)||0;
+  const p = (state.settings.promos||[]).find(x=>x.id===activePromo);
+  const base = discountType==='pct' ? Math.min(v,100)+'%' : '';
+  if(p) return p.name + (base ? ' ('+base+')' : '');
+  return base;
+}
+function resetDiscount(){
+  discountType = 'rp';
+  discountInput = '';
+  activePromo = '';
+}
+function setDiscType(t){
+  discountType = t;
+  activePromo = '';
+  renderContent();
+}
+function onDiscInput(v){
+  discountInput = v.replace(/[^0-9]/g,'');
+  activePromo = '';
+  updateCartPanelOnly('discInput');
+}
+function applyPromo(id){
+  if(activePromo===id){ resetDiscount(); renderContent(); return; }
+  const p = (state.settings.promos||[]).find(x=>x.id===id);
+  if(!p) return;
+  discountType = p.type;
+  discountInput = String(p.value);
+  activePromo = id;
+  renderContent();
+}
 
 const TABS = [
   {id:'kasir', label:'Kasir'},
@@ -572,7 +626,10 @@ function renderKasir(){
     `).join('');
   }
 
-  const total = cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const subtotal = cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const disc = calcDiscount(subtotal);
+  const total = subtotal - disc;
+  const promos = state.settings.promos || [];
   const paid = Number(cashReceived)||0;
   const change = paid - total;
   const popClass = cartAnim ? 'cart-pop' : '';
@@ -603,6 +660,19 @@ function renderKasir(){
           ${cartHtml}
           ${cart.length>0 ? `
             <div style="margin-top:10px;">
+              <div class="disc-box">
+                <label>Diskon</label>
+                ${promos.length ? `<div class="promo-chips">${promos.map(p=>`<button class="promo-chip ${activePromo===p.id?'active':''}" onclick="applyPromo('${p.id}')">${escapeHtml(p.name)}</button>`).join('')}</div>` : ''}
+                <div class="disc-row">
+                  <div class="disc-type">
+                    <button class="disc-t ${discountType==='rp'?'active':''}" onclick="setDiscType('rp')">Rp</button>
+                    <button class="disc-t ${discountType==='pct'?'active':''}" onclick="setDiscType('pct')">%</button>
+                  </div>
+                  <input type="text" inputmode="numeric" autocomplete="off" id="discInput" placeholder="0" value="${discountInput}" oninput="onDiscInput(this.value)">
+                </div>
+              </div>
+              ${disc>0 ? `<div class="cart-total-row" style="margin-top:8px;"><span>Subtotal</span><span>${formatRupiah(subtotal)}</span></div>
+              <div class="cart-total-row" style="color:var(--matcha-dark);font-weight:700;"><span>Diskon${discLabel()?' '+escapeHtml(discLabel()):''}</span><span>-${formatRupiah(disc)}</span></div>` : ''}
               <div class="cart-total-row grand"><span>Total</span><span>${formatRupiah(total)}</span></div>
               <div class="pay-toggle">
                 <button class="pay-opt ${payMethod==='tunai'?'active':''}" onclick="setPayMethod('tunai')">💵 Tunai</button>
@@ -628,13 +698,13 @@ function renderKasir(){
   `;
 }
 
-function updateCartPanelOnly(){
+function updateCartPanelOnly(fid){
   const c = document.getElementById('content');
   const scrollY = window.scrollY;
   c.innerHTML = renderKasir();
   window.scrollTo(0, scrollY);
   // kembalikan fokus ke kolom uang diterima supaya bisa lanjut mengetik
-  const inp = document.getElementById('cashInput');
+  const inp = document.getElementById(fid||'cashInput');
   if(inp){
     inp.focus();
     const len = inp.value.length;
@@ -655,6 +725,7 @@ function changeQty(menuId, delta){
   if(!item) return;
   item.qty += delta;
   if(item.qty<=0) cart = cart.filter(i=>i.menuId!==menuId);
+  if(cart.length===0) resetDiscount();
   renderContent();
 }
 function setPayMethod(m){
@@ -666,11 +737,14 @@ function clearCart(){
   cart = [];
   cashReceived = '';
   payMethod = 'tunai';
+  resetDiscount();
   renderContent();
 }
 
 async function checkout(){
-  const total = cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const subtotal = cart.reduce((s,i)=>s+i.price*i.qty,0);
+  const disc = calcDiscount(subtotal);
+  const total = subtotal - disc;
   const paid = payMethod==='qris' ? total : (Number(cashReceived)||0);
   if(cart.length===0) return;
   if(paid < total){ showToast('Uang diterima kurang dari total.'); return; }
@@ -679,6 +753,7 @@ async function checkout(){
     ts: Date.now(),
     date: todayStr(),
     items: cart.map(i=>({menuId:i.menuId, name:i.name, price:i.price, qty:i.qty})),
+    subtotal, discount: disc, discountLabel: disc>0 ? discLabel() : '',
     total, paid, change: paid-total, method: payMethod
   };
   state.transactions.push(trx);
@@ -687,6 +762,7 @@ async function checkout(){
   cart = [];
   cashReceived = '';
   payMethod = 'tunai';
+  resetDiscount();
   renderContent();
   showToast('Transaksi tersimpan.');
 }
@@ -714,6 +790,8 @@ function printReceipt(trx){
     <div class="rp-hr"></div>
     ${itemsHtml}
     <div class="rp-hr"></div>
+    ${trx.discount>0 ? `<div class="rp-row"><span>Subtotal</span><span>${formatRupiah(trx.subtotal)}</span></div>
+    <div class="rp-row"><span>Diskon${trx.discountLabel?' '+escapeHtml(trx.discountLabel):''}</span><span>-${formatRupiah(trx.discount)}</span></div>` : ''}
     <div class="rp-row" style="font-weight:800;"><span>TOTAL</span><span>${formatRupiah(trx.total)}</span></div>
     ${trx.method==='qris'
       ? `<div class="rp-row"><span>Pembayaran</span><span>QRIS</span></div>`
@@ -934,6 +1012,7 @@ function renderModalTab(){
   const penjualanQris = trxToday.filter(t=>t.method==='qris').reduce((s,t)=>s+t.total,0);
   const penjualanTunai = totalPenjualan - penjualanQris;
   const estimasiKas = sisaModal + penjualanTunai;
+  const totalDiskon = trxToday.reduce((s,t)=>s+(t.discount||0),0);
 
   return `
     <div style="margin-bottom:18px; display:flex; justify-content:space-between; align-items:center;">
@@ -947,6 +1026,7 @@ function renderModalTab(){
       <div class="tile clay"><div class="tile-label">Total Penjualan</div><div class="tile-value">${formatRupiah(totalPenjualan)}</div></div>
       <div class="tile matcha"><div class="tile-label">Penjualan Tunai</div><div class="tile-value">${formatRupiah(penjualanTunai)}</div></div>
       <div class="tile matcha"><div class="tile-label">Penjualan QRIS</div><div class="tile-value">${formatRupiah(penjualanQris)}</div></div>
+      <div class="tile"><div class="tile-label">Total Diskon</div><div class="tile-value">${formatRupiah(totalDiskon)}</div></div>
       <div class="tile matcha"><div class="tile-label">Estimasi Kas (Tunai)</div><div class="tile-value">${formatRupiah(estimasiKas)}</div></div>
     </div>
 
@@ -1055,13 +1135,14 @@ function renderRiwayatTab(){
       <div class="muted" style="margin-bottom:12px; font-size:13px;">${trx.length} transaksi · Total ${formatRupiah(totalHari)}<br>Sehari penuh: Tunai ${formatRupiah(tunaiHari)} · QRIS ${formatRupiah(qrisHari)}</div>
       ${trx.length===0 ? `<div class="empty"><div class="empty-illustration">🧾</div>Belum ada transaksi di tanggal ini.</div>` : `
       <table>
-        <thead><tr><th>Waktu</th><th>Item</th><th>Total</th><th>Bayar</th><th></th></tr></thead>
+        <thead><tr><th>Waktu</th><th>Item</th><th>Total</th><th>Diskon</th><th>Bayar</th><th></th></tr></thead>
         <tbody>
           ${trx.map(t => `
             <tr>
               <td class="muted">${formatTime(t.ts)}</td>
               <td>${t.items.map(i=>`${escapeHtml(i.name)} x${i.qty}`).join(', ')}</td>
               <td style="font-weight:600;">${formatRupiah(t.total)}</td>
+              <td class="muted">${t.discount>0 ? '-'+formatRupiah(t.discount) : '—'}</td>
               <td>${t.method==='qris' ? '<span class="pill pill-qris">QRIS</span>' : '<span class="pill pill-ok">Tunai</span>'}</td>
               <td style="text-align:right;"><button class="icon-btn" onclick='reprintById("${t.id}")' title="Cetak ulang">🖨</button></td>
             </tr>
@@ -1095,6 +1176,19 @@ function openSettings(){
           </select>
         </div>
         <div class="field" style="border-top:1px solid var(--line); padding-top:14px; margin-top:6px;">
+          <label>Promo siap pakai (muncul sebagai tombol di kasir)</label>
+          <div id="promoList">${promoListHtml()}</div>
+          <input type="text" id="f_pname" placeholder="Nama promo, mis. Promo Member" style="margin-top:8px;">
+          <div class="disc-row" style="margin-top:8px;">
+            <input type="text" inputmode="numeric" id="f_pval" placeholder="Nilai, mis. 10">
+            <select id="f_ptype" style="width:auto;">
+              <option value="pct">%</option>
+              <option value="rp">Rp</option>
+            </select>
+            <button class="btn" onclick="addPromo()">Tambah</button>
+          </div>
+        </div>
+        <div class="field" style="border-top:1px solid var(--line); padding-top:14px; margin-top:6px;">
           <label>Cadangan data (pindah ke HP / laptop lain)</label>
           <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
             <button class="btn" onclick="exportData()">⬇ Simpan cadangan</button>
@@ -1113,6 +1207,33 @@ function openSettings(){
       </div>
     </div>
   `;
+}
+function promoListHtml(){
+  const promos = state.settings.promos || [];
+  if(promos.length===0) return '<div class="muted" style="font-size:14px;">Belum ada promo. Tambahkan di bawah.</div>';
+  return promos.map(p => `<div class="promo-item"><span><b>${escapeHtml(p.name)}</b> · ${p.type==='pct' ? p.value+'%' : formatRupiah(p.value)}</span><button class="icon-btn" onclick="removePromo('${p.id}')" title="Hapus">🗑</button></div>`).join('');
+}
+async function addPromo(){
+  const name = document.getElementById('f_pname').value.trim();
+  const val = Number(document.getElementById('f_pval').value.replace(/[^0-9]/g,''))||0;
+  const type = document.getElementById('f_ptype').value;
+  if(!name){ showToast('Nama promo wajib diisi.'); return; }
+  if(val<=0){ showToast('Nilai promo harus lebih dari 0.'); return; }
+  if(type==='pct' && val>100){ showToast('Persen tidak boleh lebih dari 100.'); return; }
+  if(!state.settings.promos) state.settings.promos = [];
+  state.settings.promos.push({id:genId(), name, type, value:val});
+  await saveState();
+  document.getElementById('promoList').innerHTML = promoListHtml();
+  document.getElementById('f_pname').value = '';
+  document.getElementById('f_pval').value = '';
+  showToast('Promo ditambahkan.');
+}
+async function removePromo(id){
+  state.settings.promos = (state.settings.promos||[]).filter(p=>p.id!==id);
+  if(activePromo===id) resetDiscount();
+  await saveState();
+  document.getElementById('promoList').innerHTML = promoListHtml();
+  renderContent();
 }
 function exportData(){
   try{

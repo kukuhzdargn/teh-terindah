@@ -57,6 +57,8 @@
   } else {
     try{ db = localStorage.getItem('tt-db') || ''; }catch(e){}
   }
+  // Alamat database bawaan, supaya TV cukup membuka antrian.html tanpa alamat panjang
+  if(!db){ db = 'https://teh-teirndah-default-rtdb.asia-southeast1.firebasedatabase.app'; }
   db = db.replace(/\/+$/, '');
 
   var elP = document.getElementById('proses');

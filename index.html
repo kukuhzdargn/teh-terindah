@@ -392,6 +392,11 @@
   .q-card:last-child{ border-bottom:none; }
   .q-no{ font-family:'Fraunces',Georgia,serif; font-weight:700; font-size:30px; color:#1B3D25; min-width:84px; }
   .q-items{ flex:1; font-size:15px; min-width:120px; line-height:1.4; }
+
+  /* ===== MEDIA TV ===== */
+  .media-item{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line); }
+  .media-thumb{ width:64px; height:64px; border-radius:8px; object-fit:cover; background:var(--matcha-pale); display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0; }
+  .media-name{ flex:1; min-width:0; font-size:15px; word-break:break-all; }
 </style>
 </head>
 <body>
@@ -1282,6 +1287,7 @@ function openSettings(){
           <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
             <button class="btn" onclick="saveDbUrl()">Simpan &amp; tes</button>
             <button class="btn" onclick="copyTvLink()">Salin alamat TV</button>
+            <button class="btn" onclick="openMediaDialog()">🖼 Gambar &amp; video TV</button>
           </div>
           <div class="muted" id="tvLinkInfo" style="margin-top:6px; word-break:break-all;"></div>
         </div>
@@ -1318,6 +1324,166 @@ function openSettings(){
     </div>
   `;
 }
+/* ---------- Media layar TV (gambar & video) ---------- */
+let mediaData = {config:{interval:2, duration:45}, items:{}};
+function dbBase(){ return normalizeDbUrl(state.settings.dbUrl); }
+async function fbGet(path){
+  const r = await fetch(dbBase() + path + '.json');
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  return r.json();
+}
+async function fbPut(path, data){
+  const r = await fetch(dbBase() + path + '.json', {method:'PUT', body: JSON.stringify(data)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+}
+async function bumpMediaVersion(){ await fbPut('/antrian/mediaVersion', Date.now()); }
+
+function ytId(u){
+  const m = String(u||'').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : '';
+}
+function resizeImageFile(file, maxSide){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.round(img.width*scale), h = Math.round(img.height*scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0,0,w,h);
+        ctx.drawImage(img, 0, 0, w, h);
+        let q = 0.82, out = canvas.toDataURL('image/jpeg', q);
+        while(out.length > 900000 && q > 0.4){ q -= 0.12; out = canvas.toDataURL('image/jpeg', q); }
+        resolve(out);
+      };
+      img.onerror = () => reject(new Error('gambar'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('baca'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function openMediaDialog(){
+  if(!dbBase()){ showToast('Isi dan simpan alamat database dulu.'); return; }
+  document.getElementById('dialogRoot').innerHTML = `
+    <div class="overlay" onclick="if(event.target===this) closeDialog()">
+      <div class="dialog">
+        <h3>Gambar &amp; video TV</h3>
+        <div id="mediaBody"><div class="muted">Memuat...</div></div>
+        <div class="dialog-actions"><button class="btn btn-primary" onclick="closeDialog()">Selesai</button></div>
+      </div>
+    </div>`;
+  loadMediaData();
+}
+async function loadMediaData(){
+  try{
+    const d = await fbGet('/antrian/media');
+    mediaData = {
+      config: Object.assign({interval:2, duration:45}, (d && d.config) || {}),
+      items: (d && d.items) || {}
+    };
+    renderMediaBody();
+  }catch(e){
+    const b = document.getElementById('mediaBody');
+    if(b) b.innerHTML = '<div class="qris-note">Gagal memuat. Cek internet dan alamat database, lalu buka lagi.</div>';
+  }
+}
+function renderMediaBody(){
+  const b = document.getElementById('mediaBody');
+  if(!b) return;
+  const items = Object.keys(mediaData.items).map(k=>Object.assign({id:k}, mediaData.items[k])).sort((x,y)=>(x.ts||0)-(y.ts||0));
+  const c = mediaData.config;
+  b.innerHTML = `
+    <div class="muted" style="margin-bottom:12px;">Setiap beberapa menit, antrian di TV bergeser ke kiri dan media tampil di sisi kanan. Kalau ada beberapa media, tampilnya bergiliran. Video dibisukan.</div>
+    <div class="row">
+      <div class="field"><label>Muncul setiap</label>
+        <select id="f_minterval" onchange="saveMediaConfig()">${[1,2,3,5].map(n=>`<option value="${n}" ${Number(c.interval)===n?'selected':''}>${n} menit</option>`).join('')}</select></div>
+      <div class="field"><label>Tampil selama</label>
+        <select id="f_mduration" onchange="saveMediaConfig()">${[20,30,45,60,90].map(n=>`<option value="${n}" ${Number(c.duration)===n?'selected':''}>${n} detik</option>`).join('')}</select></div>
+    </div>
+    <label>Daftar media (${items.length}/10)</label>
+    ${items.length ? items.map(it=>`
+      <div class="media-item">
+        ${it.type==='image' ? `<img class="media-thumb" src="${it.src}" alt="">` : `<div class="media-thumb">🎬</div>`}
+        <div class="media-name">${escapeHtml(it.name || (it.type==='youtube' ? 'Video YouTube' : 'Video'))}</div>
+        <button class="icon-btn" onclick="removeMedia('${it.id}')" title="Hapus">🗑</button>
+      </div>`).join('') : `<div class="muted" style="padding:8px 0;">Belum ada media.</div>`}
+    <div class="field" style="margin-top:14px;">
+      <label>Tambah gambar / poster</label>
+      <input type="file" id="f_mimg" accept="image/*" onchange="addMediaImage(this)">
+    </div>
+    <div class="field">
+      <label>Tambah video (link YouTube atau link file .mp4)</label>
+      <input type="text" id="f_mvid" placeholder="https://www.youtube.com/watch?v=...">
+      <button class="btn" style="margin-top:8px;" onclick="addMediaVideo()">Tambah video</button>
+    </div>`;
+}
+async function saveMediaConfig(){
+  const cfg = {
+    interval: Number(document.getElementById('f_minterval').value) || 2,
+    duration: Number(document.getElementById('f_mduration').value) || 45
+  };
+  try{
+    await fbPut('/antrian/media/config', cfg);
+    mediaData.config = cfg;
+    await bumpMediaVersion();
+    showToast('Pengaturan media disimpan.');
+  }catch(e){ showToast('Gagal menyimpan. Cek internet.'); }
+}
+async function addMediaItem(item){
+  if(Object.keys(mediaData.items).length >= 10){ showToast('Maksimal 10 media. Hapus salah satu dulu.'); return false; }
+  const id = genId();
+  item.ts = Date.now();
+  try{
+    await fbPut('/antrian/media/items/' + id, item);
+    mediaData.items[id] = item;
+    await bumpMediaVersion();
+    renderMediaBody();
+    showToast('Media ditambahkan. TV akan memperbarui dalam beberapa detik.');
+    return true;
+  }catch(e){
+    showToast('Gagal menyimpan ke database. Cek internet.');
+    return false;
+  }
+}
+async function addMediaImage(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  showToast('Mengunggah gambar...');
+  try{
+    const src = await resizeImageFile(file, 1280);
+    await addMediaItem({type:'image', src, name:file.name});
+  }catch(e){
+    showToast('Gambar tidak bisa dibaca. Coba file lain.');
+  }
+  input.value = '';
+}
+async function addMediaVideo(){
+  const el = document.getElementById('f_mvid');
+  const url = (el.value||'').trim();
+  if(!url){ showToast('Tempel link video dulu.'); return; }
+  const id = ytId(url);
+  let item = null;
+  if(id) item = {type:'youtube', id, name:url};
+  else if(/^https?:\/\/.+\.(mp4|webm|ogv)(\?.*)?$/i.test(url)) item = {type:'video', src:url, name:url};
+  if(!item){ showToast('Link tidak dikenali. Pakai link YouTube atau link file .mp4'); return; }
+  if(await addMediaItem(item)) el.value = '';
+}
+async function removeMedia(id){
+  if(!confirm('Hapus media ini dari TV?')) return;
+  try{
+    await fbPut('/antrian/media/items/' + id, null);
+    delete mediaData.items[id];
+    await bumpMediaVersion();
+    renderMediaBody();
+  }catch(e){ showToast('Gagal menghapus. Cek internet.'); }
+}
+
 function tvLink(){
   const db = normalizeDbUrl(state.settings.dbUrl);
   if(!db) return '';

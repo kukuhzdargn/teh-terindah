@@ -7,19 +7,37 @@
 <style>
   *{ box-sizing:border-box; }
   html, body{ margin:0; height:100%; }
-  body{ background:#0F2717; color:#F3F7EF; font-family:Arial, Helvetica, sans-serif; overflow:hidden; }
-  #app{ display:flex; flex-direction:column; height:100%; }
-  .head{ display:flex; justify-content:space-between; align-items:center; padding:2vh 3vw; background:#1B3D25; }
+  body{ background:#0A1F12; background:-webkit-linear-gradient(315deg,#0A1F12,#14331D); background:linear-gradient(135deg,#0A1F12,#14331D); color:#F3F7EF; font-family:Arial, Helvetica, sans-serif; overflow:hidden; }
+  #app{ display:-webkit-flex; display:flex; -webkit-flex-direction:column; flex-direction:column; height:100%; }
+
+  .head{ display:-webkit-flex; display:flex; -webkit-justify-content:space-between; justify-content:space-between; -webkit-align-items:center; align-items:center; padding:2vh 3vw;
+         background:#1B3D25; background:-webkit-linear-gradient(left,#0F2717,#1B3D25 50%,#2F6B40); background:linear-gradient(90deg,#0F2717,#1B3D25 50%,#2F6B40); }
   .title{ font-size:4vw; font-weight:bold; }
   .clock{ font-size:3vw; color:#B7CDB5; }
-  .cols{ display:flex; flex:1; min-height:0; }
-  .col{ flex:1; padding:2vh 2vw; overflow:hidden; }
-  .col h2{ margin:0 0 2vh 0; font-size:3.2vw; text-align:center; letter-spacing:0.1em; }
-  .col-proses{ background:#16301E; }
-  .col-siap{ background:#E3F0DE; color:#0F2717; }
+
+  .stage{ display:-webkit-flex; display:flex; -webkit-flex:1; flex:1; min-height:0; }
+  .queue{ -webkit-flex:none; flex:none; width:100%; overflow:hidden; display:-webkit-flex; display:flex;
+          -webkit-transition:width 1.8s ease; transition:width 1.8s ease; }
+  .media{ -webkit-flex:none; flex:none; width:0; overflow:hidden; background:#000; position:relative;
+          -webkit-transition:width 1.8s ease; transition:width 1.8s ease; }
+  .media-inner{ position:absolute; top:0; left:0; width:54vw; height:100%; background:#000; }
+  .media-inner img, .media-inner video, .media-inner iframe{ width:100%; height:100%; border:0; object-fit:contain; background:#000; display:block; }
+  .stage.with-media .queue{ width:46%; }
+  .stage.with-media .media{ width:54%; }
+
+  .cols{ display:-webkit-flex; display:flex; -webkit-flex:1; flex:1; min-height:0; width:100%; }
+  .col{ -webkit-flex:1; flex:1; padding:2vh 2vw; overflow:hidden; }
+  .col h2{ margin:0 0 2vh 0; font-size:3.2vw; text-align:center; letter-spacing:0.1em; -webkit-transition:font-size 1.8s ease; transition:font-size 1.8s ease; }
+  .col-proses{ background:#16301E; background:-webkit-linear-gradient(top,#1E4229,#102A18); background:linear-gradient(180deg,#1E4229,#102A18); }
+  .col-siap{ background:#E3F0DE; background:-webkit-linear-gradient(top,#F0F8EC,#CFE6C9); background:linear-gradient(180deg,#F0F8EC,#CFE6C9); color:#0F2717; }
   .nums{ text-align:center; }
-  .num{ display:inline-block; margin:0.8vw; padding:0.6vw 2vw; font-size:7vw; font-weight:bold; border-radius:1.5vw; background:rgba(255,255,255,0.12); }
-  .col-siap .num{ background:#2B5A37; color:#fff; }
+  .num{ display:inline-block; margin:0.8vw; padding:0.6vw 2vw; font-size:7vw; font-weight:bold; border-radius:1.5vw;
+        background:rgba(255,255,255,0.12);
+        -webkit-transition:font-size 1.8s ease, padding 1.8s ease, margin 1.8s ease; transition:font-size 1.8s ease, padding 1.8s ease, margin 1.8s ease; }
+  .col-siap .num{ background:#2B5A37; background:-webkit-linear-gradient(315deg,#3E7A4C,#1F4A2B); background:linear-gradient(135deg,#3E7A4C,#1F4A2B); color:#fff; }
+  .stage.with-media .col h2{ font-size:1.7vw; }
+  .stage.with-media .num{ font-size:3vw; padding:0.4vw 0.8vw; margin:0.4vw; }
+
   .num.new{ -webkit-animation:blink 1s ease 6; animation:blink 1s ease 6; }
   @-webkit-keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:0.2;} }
   @keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:0.2;} }
@@ -34,15 +52,20 @@
     <div class="title">Teh Terindah</div>
     <div class="clock" id="clock"></div>
   </div>
-  <div class="cols">
-    <div class="col col-proses">
-      <h2>SEDANG DIBUAT</h2>
-      <div class="nums" id="proses"></div>
+  <div class="stage" id="stage">
+    <div class="queue">
+      <div class="cols">
+        <div class="col col-proses">
+          <h2>SEDANG DIBUAT</h2>
+          <div class="nums" id="proses"></div>
+        </div>
+        <div class="col col-siap">
+          <h2>SIAP DIAMBIL</h2>
+          <div class="nums" id="siap"></div>
+        </div>
+      </div>
     </div>
-    <div class="col col-siap">
-      <h2>SIAP DIAMBIL</h2>
-      <div class="nums" id="siap"></div>
-    </div>
+    <div class="media" id="media"></div>
   </div>
 </div>
 <div class="status" id="status"></div>
@@ -61,11 +84,16 @@
   if(!db){ db = 'https://teh-teirndah-default-rtdb.asia-southeast1.firebasedatabase.app'; }
   db = db.replace(/\/+$/, '');
 
+  // ?demo=1 untuk mencoba: media muncul tiap 10 detik selama 15 detik
+  var demo = /[?&]demo=1/.test(location.search);
+
   var elP = document.getElementById('proses');
   var elS = document.getElementById('siap');
   var elSt = document.getElementById('status');
   var elClock = document.getElementById('clock');
   var elHint = document.getElementById('hint');
+  var elStage = document.getElementById('stage');
+  var elMedia = document.getElementById('media');
   var prevSiap = {};
   var firstLoad = true;
   var fails = 0;
@@ -107,6 +135,26 @@
     }catch(e){}
   }
 
+  /* ---------- helper ambil data ---------- */
+  function getJSON(path, cb){
+    var done = false;
+    function fin(err, data){ if(done) return; done = true; cb(err, data); }
+    try{
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', db + path + '.json?t=' + (new Date().getTime()), true);
+      xhr.timeout = 8000;
+      xhr.onload = function(){
+        if(xhr.status === 200){
+          try{ fin(null, JSON.parse(xhr.responseText)); }catch(e){ fin(e); }
+        } else { fin(new Error('HTTP ' + xhr.status)); }
+      };
+      xhr.onerror = function(){ fin(new Error('net')); };
+      xhr.ontimeout = function(){ fin(new Error('timeout')); };
+      xhr.send();
+    }catch(e){ fin(e); }
+  }
+
+  /* ---------- antrian ---------- */
   function byTs(a, b){ return (a.o.ts || 0) - (b.o.ts || 0); }
 
   function render(orders){
@@ -144,42 +192,118 @@
 
   function setStatus(t){ elSt.innerHTML = t; }
 
-  function poll(){
-    var called = false;
-    function finish(ok){
-      if(called) return;
-      called = true;
-      if(ok){ fails = 0; setStatus(''); }
-      else { fails++; if(fails >= 3) setStatus('Menghubungkan ulang...'); }
-      setTimeout(poll, 2000);
-    }
-    try{
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', db + '/antrian/aktif.json?t=' + (new Date().getTime()), true);
-      xhr.timeout = 6000;
-      xhr.onload = function(){
-        if(xhr.status === 200){
-          try{
-            var data = JSON.parse(xhr.responseText);
-            render((data && data.orders) || {});
-            finish(true);
-          }catch(e){ finish(false); }
-        } else { finish(false); }
-      };
-      xhr.onerror = function(){ finish(false); };
-      xhr.ontimeout = function(){ finish(false); };
-      xhr.send();
-    }catch(e){ finish(false); }
+  function pollQueue(){
+    getJSON('/antrian/aktif', function(err, data){
+      if(!err){
+        fails = 0; setStatus('');
+        render((data && data.orders) || {});
+      } else {
+        fails++;
+        if(fails >= 3) setStatus('Menghubungkan ulang...');
+      }
+      setTimeout(pollQueue, 2000);
+    });
   }
 
-  if(!db){
-    elHint.style.display = 'none';
-    setStatus('Alamat database belum diatur. Buka halaman ini dari tombol "Salin alamat TV" di Pengaturan kasir.');
-    elP.innerHTML = '<div class="empty">—</div>';
-    elS.innerHTML = '<div class="empty">—</div>';
-  } else {
-    poll();
+  /* ---------- media (gambar / video di sisi kanan) ---------- */
+  var media = { interval: 2, duration: 45, items: [] };
+  var mediaVer;            // versi media terakhir yang dimuat
+  var phaseIndex = 0;
+  var phaseTimer = null;
+  var showing = false;
+
+  function schedule(){
+    if(showing) return;
+    clearTimeout(phaseTimer);
+    if(!media.items.length) return;
+    var wait = demo ? 10000 : (media.interval || 2) * 60000;
+    phaseTimer = setTimeout(startPhase, wait);
   }
+
+  function clearMedia(){
+    while(elMedia.firstChild){ elMedia.removeChild(elMedia.firstChild); }
+  }
+
+  function buildMedia(item){
+    var wrap = document.createElement('div');
+    wrap.className = 'media-inner';
+    var el = null;
+    if(item.type === 'image' && item.src){
+      el = document.createElement('img');
+      el.src = item.src;
+    } else if(item.type === 'video' && /^https?:\/\//.test(item.src || '')){
+      el = document.createElement('video');
+      el.muted = true;
+      el.setAttribute('muted', '');
+      el.autoplay = true;
+      el.loop = true;
+      el.setAttribute('playsinline', '');
+      el.src = item.src;
+      try{ var p = el.play(); if(p && p.catch){ p.catch(function(){}); } }catch(e){}
+    } else if(item.type === 'youtube' && /^[A-Za-z0-9_-]{11}$/.test(item.id || '')){
+      el = document.createElement('iframe');
+      el.setAttribute('allow', 'autoplay; encrypted-media');
+      el.setAttribute('frameborder', '0');
+      el.src = 'https://www.youtube.com/embed/' + item.id +
+               '?autoplay=1&mute=1&loop=1&playlist=' + item.id + '&controls=0&modestbranding=1&rel=0';
+    }
+    if(!el) return null;
+    wrap.appendChild(el);
+    return wrap;
+  }
+
+  function startPhase(){
+    if(!media.items.length){ return; }
+    var item = media.items[phaseIndex % media.items.length];
+    phaseIndex++;
+    var node = buildMedia(item);
+    if(!node){ schedule(); return; }
+    clearMedia();
+    elMedia.appendChild(node);
+    showing = true;
+    setTimeout(function(){ elStage.className = 'stage with-media'; }, 80);
+    var dur = demo ? 15000 : (media.duration || 45) * 1000;
+    setTimeout(endPhase, dur);
+  }
+
+  function endPhase(){
+    elStage.className = 'stage';
+    setTimeout(function(){
+      clearMedia();
+      showing = false;
+      schedule();
+    }, 2000);
+  }
+
+  function loadMedia(){
+    getJSON('/antrian/media', function(err, d){
+      if(err){ mediaVer = undefined; return; }  // coba lagi di putaran berikutnya
+      var items = [], k;
+      if(d && d.items){
+        for(k in d.items){
+          if(d.items.hasOwnProperty(k) && d.items[k]){ items.push(d.items[k]); }
+        }
+      }
+      items.sort(function(a, b){ return (a.ts || 0) - (b.ts || 0); });
+      media.items = items;
+      media.interval = (d && d.config && Number(d.config.interval)) || 2;
+      media.duration = (d && d.config && Number(d.config.duration)) || 45;
+      schedule();
+    });
+  }
+
+  function pollMediaVersion(){
+    getJSON('/antrian/mediaVersion', function(err, v){
+      if(!err && v !== mediaVer){
+        mediaVer = v;
+        loadMedia();
+      }
+      setTimeout(pollMediaVersion, 15000);
+    });
+  }
+
+  pollQueue();
+  pollMediaVersion();
 })();
 </script>
 </body>
